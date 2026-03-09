@@ -1,25 +1,8 @@
-apparently to work with FPGAs you need the following.
+# `HDL` Exploration
 
-we need to turn verilog to bitstream.
+## Structure Of `Verilog`
 
-Yosys: Synthesis that turns verilog to logic
-
-```sh
-yosys -p "synth_ice40 -top blink -json blink.json" blink.v
-nextpnr-ice40 --hx1k --json blink.json --pcf blink.pcf --asc blink.asc
-icepack blink.asc blink.bin
-iceprog blink.bin
-```
-
-Icestorm: Bitstream manipulation tools <http://bit.ly/icestorm-tools>
-(unpack it to `/usr/local`). `tar -C /usr/local -xvf ~/Downloads/..` for
-Lattice iCE40 chips
-
-arachne-pnr or nextpnr-ice40: place and route (layout designer)
-
-## structure of verilog
-
- The structure of a module is the following:
+The structure of a module is the following:
 
 ```text
 module <module name> (<port list>);
@@ -28,9 +11,9 @@ module <module name> (<port list>);
 endmodule
 ```
 
-## example
+## Example
 
-`blink.v`
+`blink.v`:
 
 ```vh
 // modules are like functions but they create hardware.
@@ -50,23 +33,8 @@ module top(
 endmodule
 ```
 
-## Verilog types
+## Links
 
-- wire
-- reg
-- arrays
-- module
-- inferred blocks
-- black box modules
-- always @(*), always @(posedge clk)
-- `define
-- `ifdef
-- `include
-- generate
-
-- <ftp://iii.net/pub/pub-site/wellspring>
 - <https://github.com/osresearch/fpga-class>
 - <https://www.fpga4fun.com>
 - <https://github.com/osresearch/up5k>
-
-see in notes for more.
