@@ -191,6 +191,335 @@ always @(poseedge clk)
 always @(*)
 ```
 
+### Data Types:
+
+- Net: wire (represents a continuous value. default value is `Z`)
+- Reg: represents a value stored over time. default value is `X`
+
+Integer: 32-bit signed ints
+Real: stores floating point numbers
+
+```verilog
+module example(input clk, input A, input B, output C);
+	wire w; // wire declaration
+	reg r; // reg decl.
+	assign w = A & B; // wire continuous assign.
+
+	//      +-------- sensitive to what? (edge of clock in this case)
+	//      v
+	always @ (posedge clk) begin // procedural assignment.
+		r = A;
+	end
+endmodule
+```
+
+### Operators:
+
+- Logical: `&` as AND, `|`, as OR `^`, as XOR `~`, as NOT `^~` as XNOR
+- Boolean: `&&` as AND, `||` as OR, `!` as NOT
+- Relational: `==`, `!=`, `>`, `<`, `>=`, `<=`
+- Arithmetic: `+`, `-`, `*`, `/`
+- Shift: `<<`, `>>`, `>>>`
+- Reduction:
+	- `&` reduce via AND,
+	- `~&` reduce via NAND,
+	- `|` reduce via OR,
+	- `~|` reduce via NOR,
+	- `^` reduce via XOR,
+	- `^~` reduce via XNOR.
+- Others: `{}` Concatenate, `{N{}}` replicate `N` times
+
+```verilog
+module adder(
+	input [3:0] A, // A(3), A(2), A(1), A(0) i.e A = 1010 (4 bit number)
+	input [3:0] B,
+	output [3:0] Sum,
+	output Cout
+);
+	assign {Cout, Sum} = A + B;
+endmodule
+```
+
+### Assignments
+
+| Continuous Assignment | Procedural Assignment |
+| --------------------- | --------------------- |
+| used outside of procedural blocks | inside of procedural blocks |
+| it drives values onto nets | updates register and memory data types |
+| automatically active at time zero | evaluated when the statement is encountered |
+| contitnues assignments auto updates the variables when RHS operand changes. | assignments made within procedural blocks like `always` or `initial` |
+| example: `assign a = b & c` | `always @( ... )` |
+| - | the 'blocking' or 'non-blocking' depends on their execution behavior within a block of code. |
+
+### modelling styles
+
+Different levels of abstraction and methodologies / styles used to describe hardware.
+
+#### Gate Level
+
+Model the design using logic gates like AND, OR, etc.
+
+```verilog
+module MUX2to1 (
+	input a,
+	input b,
+	input sel,
+	output y
+);
+	wire not_sel, and1, and2;
+
+//   +---------- gates
+//   v
+	not (and1, a, not_sel);
+	and (and1, a, not_sel);
+	and (and2, b, sel);
+
+	or (y, and1, and2)
+endmodule
+```
+
+#### Dataflow
+
+Uses assign statements to model the flow of data thorugh the circuit. Mainly
+used to describe combinational circuits. It's an intermediate level of
+abstraction between behavioral and gate-level designs.
+
+```verilog
+module MUX2to1 (
+	input a,
+	input b,
+	input sel,
+	output y
+);
+	assign y = (sel == 1'b1) ? b : a;
+endmodule
+```
+
+#### Behavioral
+
+Describes the functionality of the hardware using a high level approach with
+always blocks and if-else, case, and other statements. It is used to describe
+the complex circuits (primarily sequential ones).
+
+```verilog
+module MUX2to1 (
+	input a,
+	input b,
+	input sel,
+	output reg y
+);
+	always @ (sel or a or b) begin
+		if (sel)
+			y = b;
+		else
+			y = a;
+	end
+endmodule
+```
+
+```verilog
+module mux_8to1_behavioral (
+	input wire [7:0] d,
+	input wire [2:0] sel,
+	output reg y
+);
+	always @(*) begin
+		case (sel)
+			3'b000: y = d[0];
+			3'b001: y = d[1];
+			3'b010: y = d[2];
+			3'b011: y = d[3];
+			3'b100: y = d[4];
+			3'b101: y = d[5];
+			3'b110: y = d[6];
+			3'b111: y = d[7];
+			default: y = 1'b0;
+		endcase
+	end
+endmodule
+```
+
+##### Priority Encoder of `8x3` with if-else:
+
+```verilog
+module Priority_Encoder_8to3 (
+	input [7:0] in,
+	output reg [2:0] out,
+	output reg valid
+);
+	always @(*) begin
+		if (in[7]) begin
+			out = 3'b111;
+			valid = 1;
+		end
+		else if (in[6]) begin
+			out = 3'b110;
+			valid = 1;
+		end
+		else if (in[5]) begin
+			out = 3'b101;
+			valid = 1;
+		end
+		else if (in[4]) begin
+			out = 3'b100;
+			valid = 1;
+		end
+		else if (in[3]) begin
+			out = 3'b011;
+			valid = 1;
+		end
+		else if (in[2]) begin
+			out = 3'b010;
+			valid = 1;
+		end
+		else if (in[1]) begin
+			out = 3'b001;
+			valid = 1;
+		end
+		else if (in[0]) begin
+			out = 3'b000;
+			valid = 1;
+		end
+		else begin
+			out = 3'bXXX;
+			valid = 0;
+		end
+	end
+endmodule
+```
+
+with `casex`:
+
+```verilog
+module Priority_Encoder_8to3 (
+	input [7:0] in,
+	output reg [2:0] out,
+	output reg valid
+);
+	always @(*) begin
+		casex (in)
+			// +--> if this is one but rest is whatever, then this case is triggered
+			// |
+			// v
+			8'b1xxxxxxx: out = 3'b111; // input 7
+			8'b01xxxxxx: out = 3'b110; // input 6
+			8'b001xxxxx: out = 3'b101; // input 5
+			8'b0001xxxx: out = 3'b100; // input 4
+			8'b00001xxx: out = 3'b011; // input 3
+			8'b000001xx: out = 3'b010; // input 2
+			8'b0000001x: out = 3'b001; // input 1
+			8'b00000001: out = 3'b000; // input 0
+			default: out = 3'b000; // no input
+		endcase
+		valid = (in != 8'b00000000);
+	end
+endmodule
+```
+
+##### Sequential Circuits
+
+###### D Flip Flop
+
+truth table:
+
+| clk | reset | d | q |
+| --- | ----- | - | - |
+|  ↑  |   0   | x | 0 |
+|  ↑  |   1   | 1 | 1 |
+|  ↑  |   1   | 0 | 0 |
+
+```verilog
+module D_FF(input clk, input reset, input d, output reg q);
+	always @(posedge clk) begin
+		if (reset)
+			q <= 0;
+		else
+			q <= d;
+	end
+endmodule
+```
+
+###### SR Flip Flop
+
+| clk | rst | S | R | Q        |
+| --- | --- | - | - | -------- |
+|  1  |  1  | x | x | 0        |
+|  1  |  0  | 0 | 0 | Q (hold) |
+|  1  |  0  | 0 | 1 | 0        |
+|  1  |  0  | 1 | 0 | 1        |
+|  1  |  0  | 1 | 1 | Z        |
+
+```verilog
+module sr_flipflop (input S, input R, input clk, output reg Q);
+	always @(posedge clk) begin
+		case ({S, R})
+			1'b00: Q <= Q; // no change
+			1'b01: Q <= 1'b0; // Reset (R=1, S=0), set Q to 0
+			1'b10: Q <= 1'b1; // set (S=1, R=0), set Q to 1
+			1'b11: Q <= 1'bZ; // invalid state (S=1, R=1), output is undefined
+		endcase
+	end
+endmodule
+```
+
+###### T Flip Flop
+
+| clk | rst | T | q           |
+| --- | --- | - | ----------- |
+|  1  |  1  | x | 0           |
+|  1  |  0  | 1 | Q' (toggle) |
+|  1  |  0  | 0 | Q (hold)    |
+
+```verilog
+module t_ff (input clk, rst, input t, output reg 1);
+	always @(posedge clk) begin
+		if (rst) q <= 0; // active high reset
+		else
+			begin
+				if (t) q <= ~q;
+				else q <= q;
+			end
+	end
+endmodule
+```
+
+###### JK Flip Flop
+
+| clk | rst | j | k | Q           |
+| --- | --- | - | - | ----------- |
+|  1  |  1  | x | x | 0           |
+|  1  |  0  | 0 | 0 | Q (hold)    |
+|  1  |  0  | 0 | 1 | 0           |
+|  1  |  0  | 1 | 0 | 1           |
+|  1  |  0  | 1 | 1 | Q' (toggle) |
+
+```verilog
+module jk_flipflop (input J, input K, input clk, output reg Q);
+	always @(posedge clk) begin
+		case ({J, K})
+			1'b00: Q <= Q; // no change (hold the value)
+			1'b01: Q <= 1'b0;
+			1'b10: Q <= 1'b1;
+			1'b11: Q <= ~Q;
+		endcase
+	end
+endmodule
+```
+
+### Blocking Assignment vs Non Blocking Assignment
+
+Blocking assignments are represented by the equal sign `=`. It executes in
+series. It is used in combinational circuit design.
+
+Non blocking assignments are represented by the less than equal sign `<=`.
+It executes in parallel. It is used in sequential circuit design.
+
+### resource
+
+- [Mastering Verilog | Beginners to Advanced](https://www.youtube.com/watch?v=YUB-OyGr1oA)
+- [Mastering System Verilog | Complete Guide](https://www.youtube.com/watch?v=FWtEZHJhdnM)
+
+
 Simulation and Testing
 ----------------------
 
